@@ -1,0 +1,456 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use Cwd 'abs_path';
+
+my $USAGE = "
+Usage:
+
+VODKA --genomeFA <input fasta> --queryInput <file of fastq/fasta> --outDir <output directory> --bt2Dir <bowtie2 directory> [options]
+
+--genomeFA <input fasta> viral genome fasta file.
+--queryInput <fastq/fastq> a file with full path of fastq or fasta files for alignment. fastq/fasta files can be gzip'ed.
+--outDir <output directory> full path to output directory.
+--bt2Dir <bowtie2 directory> full path to bowtie2-2.2.9 directory. (where bowtie2 and bowtie2-build is located)
+
+[options]
+-bp_from_right <n> : <n> is number of bases from right. (default: 3000)
+-h/--help : print this usage.
+
+
+";
+
+
+if (@ARGV < 1){
+	die $USAGE;
+}
+my ($fasta, @query, $OUTDIR, $bt2_path);
+my $req_cnt = 0;
+my $bp = 3000;
+my $req_str = "--genomeFA, --queryInput, --outDir, --bt2Dir";
+for(my $i=0; $i<@ARGV; $i++){
+	my $option_recognized = "false";
+	if (($ARGV[$i] eq '-h') || ($ARGV[$i] eq '--help')){
+		$option_recognized = "true";
+		die $USAGE;
+	}
+	if ($ARGV[$i] eq '--genomeFA'){
+		$option_recognized = "true";
+		$fasta = $ARGV[$i+1];
+		$i++;
+		$req_cnt++;
+		$req_str =~ s/--genomeFA,//;
+	}
+	if ($ARGV[$i] eq '--bt2Dir'){
+		$option_recognized = "true";
+		$bt2_path = $ARGV[$i+1];
+		$i++;
+		$req_cnt++;
+		$req_str =~ s/--bt2Dir//;
+	}
+	if ($ARGV[$i] eq '--queryInput'){
+		$option_recognized = "true";
+		my $file = $ARGV[$i+1];
+		unless (-e $file){
+			die "ERROR: file '$file' does not exist.\n";
+		}
+		my $files = `cat $file`;
+		@query = split(/\n/,$files);
+		$i++;
+		$req_cnt++;
+		$req_str =~ s/--queryInput,//;	
+	}
+	if ($ARGV[$i] eq '--outDir'){
+		$option_recognized = "true";
+		$OUTDIR = $ARGV[$i+1];
+		$i++;
+		$req_cnt++;
+		$req_str =~ s/--outDir,//;	
+	}
+	if ($ARGV[$i] eq '-bp_from_right'){
+		$option_recognized = "true";
+		$bp = $ARGV[$i+1];
+	}
+	if ($option_recognized eq "false"){
+		die "option '$ARGV[$i] not recognized\n";
+	}
+}
+$req_str =~ s/^\s+|\s+$//g;
+unless ($req_cnt eq 4){
+	die "ERROR: Please provide $req_str\n$USAGE";
+}
+unless (-e $fasta){
+	die "fasta file '$fasta' does not exist\n";
+}
+unless (-d $OUTDIR){
+	`mkdir -p $OUTDIR`;
+}
+unless (-e "$bt2_path/bowtie2"){
+        die "bowtie2 does not exist in '$bt2_path'\n";
+}
+my $logdir = "$OUTDIR/logs/";
+unless (-d $logdir){
+	`mkdir $logdir`;
+}
+my $shdir = "$OUTDIR/shell_scripts/";
+unless (-d $shdir){
+	`mkdir $shdir`;
+}
+my $refdir = "$OUTDIR/bt2_index/";
+$refdir =~ s/\/\//\//g;
+unless (-d "$refdir"){
+	`mkdir $refdir`;
+}
+my $alndir = "$OUTDIR/alignment/";
+unless (-d "$alndir"){
+	`mkdir $alndir`;
+}
+my $resultsdir = "$OUTDIR/results/";
+unless (-d $resultsdir){
+	`mkdir $resultsdir`;
+}
+
+my $samplenames = "";
+for my $qfile (@query){
+	$qfile =~ s/^\s+|\s+$//g;
+	unless (-e $qfile){
+		die "query input '$qfile' does not exist\n";
+	}
+	my ($gz, $fqfa) = &get_filetype($qfile);
+	my @a = split("/",$qfile);
+	my $samplename = $a[@a-1];
+	$samplename =~ s/.fastq//i;
+	$samplename =~ s/.fasta//i;
+	$samplename =~ s/.fa//i;
+	$samplename =~ s/.fq//i;
+	$samplename =~ s/.gz//i;
+	$samplenames .= "$samplename,";	
+}
+$samplenames =~ s/\,$//;
+
+my @a = split("/",$fasta);
+my $fullname = $a[@a-1];
+my $outFASTA = "$refdir/$fullname.$bp.fasta";
+
+my $bt2_index = $outFASTA;
+$bt2_index =~ s/.fasta$//;
+
+my $full_index = "$refdir/$fullname";
+
+my $indexname = $bt2_index;
+$indexname =~ s/\/\//\//g;
+$indexname =~ s/$refdir//;
+
+my $result_fa = "$OUTDIR/results/$indexname" . "_RESULTS.fa";
+my $result_sam = "$OUTDIR/results/$indexname" . "_RESULTS.sam";
+my $result_txt = "$OUTDIR/results/$indexname" . "_RESULTS.txt";
+my $filtered = $result_txt;
+$filtered =~ s/.txt$/.filtered.txt/;
+my $summaryfile = $filtered;
+$summaryfile =~ s/.txt$/.SUMMARY.txt/;
+
+my $LOG = "$logdir/VODKA.$indexname.log";
+open(LOG,">>$LOG");
+my $path = abs_path($0);
+$path =~ s/\/VODKA//;
+
+my @chars = ("A".."Z", "a".."z");
+my $study;
+$study .= $chars[rand @chars] for 1..8;
+
+my ($jobname, $logname, $time, $jobnamep, $fhOut);
+my $jobnum = 1;
+my ($x, $pid, $check);
+
+print LOG "\n=======\nVODKA\n=======\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
+
+###############################
+#STEP1: newfasta from genomeFA
+###############################
+$jobname = "$indexname.genomeFA_to_newFA";
+$jobnamep = "$jobname.$study";
+$logname = $jobname;
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+$x = `echo "perl $path/genomefa_to_newfasta.pl $fasta $bp 100 $outFASTA\n" > $shdir/$jobnamep.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_onejob($jobname);
+&only_err("$logname.err");
+$jobnum++;
+
+###############################
+#STEP2: build bowtie2 index
+###############################
+$jobname = "$indexname.build_index";
+$jobnamep = "$jobname.$study";
+
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+##NEWFASTA
+$logname = "$jobname.$indexname";
+$x = `echo "$bt2_path/bowtie2-build --threads 12 $outFASTA $bt2_index \&\& echo 'got here'" > $shdir/$jobnamep.$indexname.sh`; 
+$pid = open $fhOut, "| sh $shdir/$jobnamep.$indexname.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+###FULL GENOME
+$logname = "$jobname.$fullname";
+my ($fgz, $ffqfa) = &get_filetype($fasta);
+my $full_fasta = "$fasta";
+if ($fgz eq "true"){
+    $full_fasta = "$refdir/$fullname.FASTA";
+    $x = `gunzip -c $fasta > $full_fasta`;
+}
+$x = `echo "$bt2_path/bowtie2-build --threads 12 $full_fasta $full_index \&\& echo 'got here'" > $shdir/$jobnamep.$fullname.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.$fullname.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_alljob("$jobname.*.err");
+&only_err("$logname.err");
+$jobnum++;
+
+###############################
+#STEP3: align reads 
+###############################
+$jobname = "$indexname.align_reads";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+for my $qfile (@query){
+	$qfile =~ s/^\s+|\s+$//g;
+	my ($gz, $fqfa) = &get_filetype($qfile);
+	my $option = "";
+	if ($fqfa eq 'fa'){
+		$option = "-f";
+	}
+	if ($fqfa eq 'fq'){
+		$option = "-q";
+	}
+	my @a = split("/",$qfile);
+	my $samplename = $a[@a-1];
+	$samplename =~ s/.fastq//i;
+	$samplename =~ s/.fasta//i;
+	$samplename =~ s/.fa//i;
+	$samplename =~ s/.fq//i;
+	$samplename =~ s/.gz//i;
+
+	$x = `echo "$bt2_path/bowtie2 --no-unal --threads 12 $option --local -x $bt2_index -U $qfile -S $alndir/$samplename.$indexname.sam \&\& echo 'got here'\n" > $shdir/$jobnamep.$samplename.sh`;
+	$logname = "$jobname.$samplename";
+	$pid = open my $fhOut2, "| sh $shdir/$jobnamep.$samplename.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+}
+$check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    	$check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+    	sleep(10);
+    	chomp($check);
+}
+&check_exit_alljob("$jobname.*.err");
+&only_err("$logname.err");
+$jobnum++;
+
+###############################
+#STEP4: search
+###############################
+$jobname = "$indexname.search";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+for my $qfile (@query){
+    $qfile =~ s/^\s+|\s+$//g;
+    my @a = split("/",$qfile);
+    my $samplename = $a[@a-1];
+    $samplename =~ s/.fastq//i;
+    $samplename =~ s/.fasta//i;
+    $samplename =~ s/.fa//i;
+    $samplename =~ s/.fq//i;
+    $samplename =~ s/.gz//i;
+    my $SAM = "$alndir/$samplename.$indexname.sam";
+    my $sOUT = $SAM;
+    $sOUT =~ s/.sam$/.search_output.txt/;
+	$x = `echo "perl $path/search1.pl $SAM $sOUT" > $shdir/$jobnamep.$samplename.sh`;
+	$logname = "$jobname.$samplename";
+	$pid = open $fhOut, "| sh $shdir/$jobnamep.$samplename.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+}
+$check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+	$check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+	sleep(10);
+    	chomp($check);
+}
+&check_exit_alljob("$jobname.*.err");
+&only_err("$logname.err");
+$jobnum++;
+
+###############################
+#STEP5: organize 
+###############################
+$jobname = "$indexname.organize";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+$logname = "$jobname";
+$x = `echo "perl $path/organize.pl $OUTDIR $indexname $samplenames\n" > $shdir/$jobnamep.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_onejob($jobname);
+&only_err("$logname.err");
+$jobnum++;
+
+####################################
+#STEP6: align results to full genome
+####################################
+$jobname = "$indexname.align_results";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+$logname = "$jobname";
+$x = `echo "$bt2_path/bowtie2 --threads 12 -f --local -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_onejob($jobname);
+&only_err("$logname.err");
+$jobnum++;
+
+####################################
+#STEP7: filter results
+####################################
+$jobname = "$indexname.filter_results";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+$logname = "$jobname";
+$x = `echo "perl $path/get_unmapped_results_only.pl $result_sam $result_txt\n" > $shdir/$jobnamep.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_onejob($jobname);
+&only_err("$logname.err");
+$jobnum++;
+
+####################################
+#STEP8: get breakdown
+####################################
+$jobname = "$indexname.get_breakdown";
+$jobnamep = "$jobname.$study";
+$time = `date`;
+print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+$logname = "$jobname";
+$x = `echo "perl $path/get_breakdown.pl $filtered\n" > $shdir/$jobnamep.sh`;
+$pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
+$check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+until ($check eq '0'){
+    $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
+    sleep(10);
+    chomp($check);
+}
+&check_exit_onejob($jobname);
+&only_err("$logname.err");
+
+print LOG "\n************************************\n";
+print LOG "*   VODKA completed Successfully   *";
+print LOG "\n************************************\n";
+print LOG "\nFinal results file: $filtered\n";
+print LOG "Summary file: $summaryfile\n\n";
+
+sub check_exit_onejob {
+    my ($name_of_job) = @_;
+    my $outfile = "$logdir/$name_of_job.out";
+    my $check_out = `grep "got here" $outfile | grep -vc echo`;
+    chomp($check_out);
+    unless ($check_out == 1){
+#	print "$check_out\n";
+	die "EXITONE:Job exited before completing.\n";
+    }
+}
+
+sub check_exit_alljob{
+    my ($err_name) = @_;
+    my $out_name = $err_name;
+    $out_name =~ s/err$/out/g;
+    my $wc_out = `ls $logdir/$out_name | wc -l`;
+    my $check_out = `grep "got here" $logdir/$out_name | grep -vc echo`;
+    chomp($wc_out);
+    chomp($check_out);
+    unless ($check_out == $wc_out){
+#	print "$check_out\t$wc_out\n";
+	die "EXITALLJOB:Job exited before completing.\n";
+    }
+}
+
+sub only_err{
+    my ($err_name) = @_;
+    my $wc_err_sample = `grep -v "Building a SMALL index" $logdir/$err_name | grep -v reads | grep -v align | grep -vc unpair`;
+    my @wc = split(/\n/, $wc_err_sample);
+    my $sum = 0;
+    my $log = `cat $logdir/$err_name`;
+    for(my $i=0;$i<@wc;$i++){
+	my $last_wc = $wc[@wc-1-$i];
+	my @w = split(" ", $last_wc);
+	my $wc_num = $w[0];
+	$sum = $sum + $wc_num;
+    }
+    if ($sum ne '0'){
+	print LOG "***Job Killed:\nstderr: $logdir/$err_name\n";
+	die "\nERROR: \"stderr: $logdir/$err_name";
+    }
+    else{
+	my $date =`date`;
+	print LOG "\tCOMPLETED: $date\n";
+    }
+}
+
+sub get_filetype{
+	my ($file) = @_;
+	my $ft = `file $file`;
+	chomp($ft);
+	my $gz = "";
+	if ($ft =~ /compressed/){
+	    $gz = "true";
+	}
+	else{
+	    $gz = "false";
+	}
+    my $firstline;
+    if ($gz eq "true"){
+        $firstline = `gunzip -c $file | head -1`;
+    }
+    else{
+        $firstline = `head -1 $file`;
+    }
+    my $fqfa = "";
+    if ($firstline =~ /^@/){
+    	$fqfa = "fq";
+    }
+    else{
+        if ($firstline =~ /^>/){
+        	$fqfa = "fa";
+        }
+        else{
+            die "\nERROR: Unaligned files need to be in fastq or fasta format.\n\n";
+        }
+    }
+    return ($gz, $fqfa);
+}
+
+

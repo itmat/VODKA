@@ -16,8 +16,8 @@
     * -h/--help : print this usage.
 
 ### Requirements
-* bowtie2-2.2.9 
+* bowtie2-2.2.9: <br>
 Download bowtie2-2.2.9 from [here.](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.9)
-* RAM
+* RAM: <br>
 2G per fastq/fasta file. 
 

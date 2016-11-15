@@ -195,7 +195,7 @@ $time = `date`;
 print LOG "$jobnum. $jobname\n\tSTARTED:$time";
 ##NEWFASTA
 $logname = "$jobname.$indexname";
-$x = `echo "$bt2_path/bowtie2-build --threads 12 $outFASTA $bt2_index \&\& echo 'got here'" > $shdir/$jobnamep.$indexname.sh`; 
+$x = `echo "$bt2_path/bowtie2-build --threads 2 $outFASTA $bt2_index \&\& echo 'got here'" > $shdir/$jobnamep.$indexname.sh`; 
 $pid = open $fhOut, "| sh $shdir/$jobnamep.$indexname.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 ###FULL GENOME
 $logname = "$jobname.$fullname";
@@ -205,7 +205,7 @@ if ($fgz eq "true"){
     $full_fasta = "$refdir/$fullname.FASTA";
     $x = `gunzip -c $fasta > $full_fasta`;
 }
-$x = `echo "$bt2_path/bowtie2-build --threads 12 $full_fasta $full_index \&\& echo 'got here'" > $shdir/$jobnamep.$fullname.sh`;
+$x = `echo "$bt2_path/bowtie2-build --threads 2 $full_fasta $full_index \&\& echo 'got here'" > $shdir/$jobnamep.$fullname.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.$fullname.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef | grep -w $jobnamep | grep -vc grep`;
 until ($check eq '0'){

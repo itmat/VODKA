@@ -63,6 +63,9 @@ for(my $i=0; $i<@ARGV; $i++){
 	if ($ARGV[$i] eq '--outDir'){
 		$option_recognized = "true";
 		$OUTDIR = $ARGV[$i+1];
+                unless (-d $OUTDIR){
+                    `mkdir -p $OUTDIR`;
+                }
 		$i++;
 		$req_cnt++;
 		$req_str =~ s/--outDir,//;	
@@ -82,32 +85,30 @@ unless ($req_cnt eq 4){
 unless (-e $fasta){
 	die "fasta file '$fasta' does not exist\n";
 }
-unless (-d $OUTDIR){
-	`mkdir -p $OUTDIR`;
-}
+$OUTDIR =~ s/\/\//\//g;
 unless (-e "$bt2_path/bowtie2"){
         die "bowtie2 does not exist in '$bt2_path'\n";
 }
 my $logdir = "$OUTDIR/logs/";
 unless (-d $logdir){
-	`mkdir $logdir`;
+	`mkdir -p $logdir`;
 }
 my $shdir = "$OUTDIR/shell_scripts/";
 unless (-d $shdir){
-	`mkdir $shdir`;
+	`mkdir -p $shdir`;
 }
 my $refdir = "$OUTDIR/bt2_index/";
 $refdir =~ s/\/\//\//g;
 unless (-d "$refdir"){
-	`mkdir $refdir`;
+	`mkdir -p $refdir`;
 }
 my $alndir = "$OUTDIR/alignment/";
 unless (-d "$alndir"){
-	`mkdir $alndir`;
+	`mkdir -p $alndir`;
 }
 my $resultsdir = "$OUTDIR/results/";
 unless (-d $resultsdir){
-	`mkdir $resultsdir`;
+	`mkdir -p $resultsdir`;
 }
 
 my $samplenames = "";
@@ -152,7 +153,7 @@ $summaryfile =~ s/.txt$/.SUMMARY.txt/;
 my $LOG = "$logdir/VODKA.$indexname.log";
 open(LOG,">>$LOG");
 my $path = abs_path($0);
-$path =~ s/\/VODKA//;
+$path =~ s/\/VODKA$//;
 
 my @chars = ("A".."Z", "a".."z");
 my $study;
@@ -162,7 +163,7 @@ my ($jobname, $logname, $time, $jobnamep, $fhOut);
 my $jobnum = 1;
 my ($x, $pid, $check);
 
-print LOG "\n=======\nVODKA\n=======\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
+print LOG "\n=======\n VODKA\n=======\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
 
 ###############################
 #STEP1: newfasta from genomeFA
@@ -241,7 +242,7 @@ for my $qfile (@query){
 	$samplename =~ s/.fq//i;
 	$samplename =~ s/.gz//i;
 
-	$x = `echo "$bt2_path/bowtie2 --no-unal --threads 12 $option --local -x $bt2_index -U $qfile -S $alndir/$samplename.$indexname.sam \&\& echo 'got here'\n" > $shdir/$jobnamep.$samplename.sh`;
+	$x = `echo "$bt2_path/bowtie2 --no-unal --threads 2 $option --local -x $bt2_index -U $qfile -S $alndir/$samplename.$indexname.sam \&\& echo 'got here'\n" > $shdir/$jobnamep.$samplename.sh`;
 	$logname = "$jobname.$samplename";
 	$pid = open my $fhOut2, "| sh $shdir/$jobnamep.$samplename.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 }
@@ -316,7 +317,7 @@ $jobnamep = "$jobname.$study";
 $time = `date`;
 print LOG "$jobnum. $jobname\n\tSTARTED:$time";
 $logname = "$jobname";
-$x = `echo "$bt2_path/bowtie2 --threads 12 -f --local -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
+$x = `echo "$bt2_path/bowtie2 --threads 2 -f --local -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
 until ($check eq '0'){

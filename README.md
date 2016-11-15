@@ -1,18 +1,23 @@
 # VODKA
 ## Viral Open-source DVG Key Algorithm
 
-============================================================================================================================================================
+### Usage
 
-### 0. Setting Up
+    VODKA --genomeFA <input fasta> --queryInput <file of fastq/fasta> --outDir <output directory> \
+    --bt2Dir <bowtie2 directory> [options]
 
-####A. Clone the repository
-Initial check-out:
+* --genomeFA &lt;input fasta> : viral genome fasta file.
+* --queryInput &lt;fastq/fastq> : a file with full path of fastq or fasta files for alignment. fastq/fasta files can be gzip'ed.
+* --outDir &lt;output directory> : full path to output directory.
+* --bt2Dir &lt;bowtie2 directory> : full path to bowtie2-2.2.9 directory. (where bowtie2 and bowtie2-build is located)
 
-    git clone https://github.com/itmat/VODKA.git
+* options : <br>
+    * -bp_from_right &lt;n> : &lt;n> is number of bases from right. (default: 3000)
+    * -h/--help : print this usage.
 
-Make sure you have the latest version of VODKA:
-
-    git pull
-
-####B. Download bowtie2-2.2.9 
+### Requirements
+* bowtie2-2.2.9 
+Download bowtie2-2.2.9 from [here.](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.9)
+* RAM
+2G per fastq/fasta file. 
 

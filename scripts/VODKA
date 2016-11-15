@@ -163,7 +163,7 @@ my ($jobname, $logname, $time, $jobnamep, $fhOut);
 my $jobnum = 1;
 my ($x, $pid, $check);
 
-print LOG "\n=======\n VODKA\n=======\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
+print LOG "\n===========\n VODKA v0.1\n===========\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
 
 ###############################
 #STEP1: newfasta from genomeFA

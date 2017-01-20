@@ -317,7 +317,7 @@ $jobnamep = "$jobname.$study";
 $time = `date`;
 print LOG "$jobnum. $jobname\n\tSTARTED:$time";
 $logname = "$jobname";
-$x = `echo "$bt2_path/bowtie2 --threads 2 -f --local -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
+$x = `echo "$bt2_path/bowtie2 --threads 2 -f -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
 until ($check eq '0'){

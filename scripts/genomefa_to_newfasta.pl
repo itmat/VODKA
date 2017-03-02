@@ -38,6 +38,8 @@ my $flag = 0;
 my $onelineseq = "";
 while(my $line = <IN>) {
     if($line =~ />/) {
+	next;
+=comment
 	if($flag == 0) {
 	    $onelineseq .= $line;
 	    $flag = 1;
@@ -45,6 +47,7 @@ while(my $line = <IN>) {
 	else {
 	    $onelineseq .= "\n$line";
 	}
+=cut
     }
     else {
 	chomp($line);
@@ -53,6 +56,8 @@ while(my $line = <IN>) {
     }
 }
 close(IN);
+my $seql = length($onelineseq);
+my $for_gc = $seql+$bases_to_use;
 my $threekb = substr($onelineseq, $bases_to_use);
 
 my $s2_cnt = 0;
@@ -69,7 +74,12 @@ while ($s2_start > 0){
 	my $s1_end = $s1_cnt+$bp;
 	$s1_cnt++;
 	if ($s2_start - $s1_end >= 0){ #does not overlap
-	    print OUT ">$s1_end"."_"."$s2_start\n";
+	    my $N = $s1_end - $bp + 1;
+	    my $M = $s2_start + 1;
+	    my $GN = $N + $for_gc;
+	    my $GM = $M + $for_gc;
+	    print OUT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
+#	    print OUT ">$s1_end"."_"."$s2_start\n";
 	    print OUT "$s2_rc$s1\n";
 	}
 	else{

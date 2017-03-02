@@ -29,7 +29,7 @@ while(my $line = <IN>){
 }
 close(IN);
 open(OUT, ">$breakdown");
-print OUT "N_M\ttotal_count";
+print OUT "A_C(A_C)\ttotal_count";
 foreach my $seq (sort keys %SEQRUN){
     print OUT "\t$seq";
 }

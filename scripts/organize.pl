@@ -59,7 +59,7 @@ close(OUTR);
 my $filename = "$DIR/results/$indexname" . "_RESULTS.txt";
 
 open(OUTFILE, ">$filename");
-print OUTFILE "N_M\tREAD_ID\tLEFT\tRIGHT\tMIN\tSTART\tCIGAR\tSEQ_RUN\tREAD\n";
+print OUTFILE "A_C(A_C)\tREAD_ID\tLEFT\tRIGHT\tMIN\tSTART\tCIGAR\tSEQ_RUN\tREAD\n";
 foreach my $key (keys %DATA) {
     print OUTFILE "$DATA{$key}";
 }

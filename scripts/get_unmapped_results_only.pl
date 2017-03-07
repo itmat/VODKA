@@ -38,7 +38,7 @@ while(my $line = <IN>){
     chomp($line);
     my @a = split(/\t/,$line);
     my $rid = $a[1];
-    my $seqid = $a[7];
+    my $seqid = $a[8];
     if (exists $UNM_IDS{$rid}){
 	if ($seqid eq $UNM_IDS{$rid}){
 	    print OUT "$line\n";

@@ -23,7 +23,7 @@ while(my $line = <IN>){
     chomp($line);
     my @a = split(/\t/,$line);
     my $nm= $a[0];
-    my $seq = $a[7];
+    my $seq = $a[8];
     push(@{$TCNT{$nm}}, $seq);
     $SEQRUN{$seq} = 1;
 }
@@ -34,7 +34,7 @@ foreach my $seq (sort keys %SEQRUN){
     print OUT "\t$seq";
 }
 print OUT "\n";
-foreach my $nm (keys %TCNT){
+foreach my $nm (sort keys %TCNT){
     my $cnt = @{$TCNT{$nm}};
     print OUT "$nm\t$cnt";
     foreach my $seq (sort keys %SEQRUN){

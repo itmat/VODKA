@@ -164,7 +164,7 @@ my $jobnum = 1;
 my ($x, $pid, $check);
 
 print LOG "\n===========\n VODKA v0.1\n===========\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
-
+#=comment
 ###############################
 #STEP1: newfasta from genomeFA
 ###############################
@@ -172,7 +172,7 @@ $jobname = "$indexname.genomeFA_to_newFA";
 $jobnamep = "$jobname.$study";
 $logname = $jobname;
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $x = `echo "perl $path/genomefa_to_newfasta.pl $fasta $bp 100 $outFASTA\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
@@ -192,7 +192,7 @@ $jobname = "$indexname.build_index";
 $jobnamep = "$jobname.$study";
 
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 ##NEWFASTA
 $logname = "$jobname.$indexname";
 $x = `echo "$bt2_path/bowtie2-build --threads 2 $outFASTA $bt2_index \&\& echo 'got here'" > $shdir/$jobnamep.$indexname.sh`; 
@@ -223,7 +223,7 @@ $jobnum++;
 $jobname = "$indexname.align_reads";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 for my $qfile (@query){
 	$qfile =~ s/^\s+|\s+$//g;
 	my ($gz, $fqfa) = &get_filetype($qfile);
@@ -255,14 +255,14 @@ until ($check eq '0'){
 &check_exit_alljob("$jobname.*.err");
 &only_err("$logname.err");
 $jobnum++;
-
+#=cut
 ###############################
 #STEP4: search
 ###############################
 $jobname = "$indexname.search";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 for my $qfile (@query){
     $qfile =~ s/^\s+|\s+$//g;
     my @a = split("/",$qfile);
@@ -295,7 +295,7 @@ $jobnum++;
 $jobname = "$indexname.organize";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $logname = "$jobname";
 $x = `echo "perl $path/organize.pl $OUTDIR $indexname $samplenames\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
@@ -315,7 +315,7 @@ $jobnum++;
 $jobname = "$indexname.align_results";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $logname = "$jobname";
 $x = `echo "$bt2_path/bowtie2 --threads 2 -f -x $full_index -U $result_fa -S $result_sam \&\& echo 'got here'\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
@@ -335,7 +335,7 @@ $jobnum++;
 $jobname = "$indexname.filter_results";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $logname = "$jobname";
 $x = `echo "perl $path/get_unmapped_results_only.pl $result_sam $result_txt\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
@@ -355,7 +355,7 @@ $jobnum++;
 $jobname = "$indexname.get_breakdown";
 $jobnamep = "$jobname.$study";
 $time = `date`;
-print LOG "$jobnum. $jobname\n\tSTARTED:$time";
+print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $logname = "$jobname";
 $x = `echo "perl $path/get_breakdown.pl $filtered\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;

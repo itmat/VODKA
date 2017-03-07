@@ -57,13 +57,50 @@ while(my $line = <IN>) {
 }
 close(IN);
 my $seql = length($onelineseq);
+#my $gsize = "$out.gsize";
+#print genome size to a file for search script.
+#my $c = `echo $seql > $gsize`;
+
 my $for_gc = $seql+$bases_to_use;
 my $threekb = substr($onelineseq, $bases_to_use);
 
 my $s2_cnt = 0;
 my $length = length($threekb);
+
+#25 to 99 
+my $tbp = 25;
+my $last_s2_start = $length - $tbp;
+#die $last_s2_start;
+open(OUT, ">$out");
+while($last_s2_start > 2900){
+    my $s2_st = -$tbp;
+    my $s1_cnt = 0;
+    my $s2 = substr($threekb, -$tbp, $tbp);
+    my $s2_rc = &reversecomplement($s2);
+    for (my $i=0;$i<$length;$i++){
+	my $s1 = substr($threekb, $s1_cnt, $bp);
+        my $s1_end = $s1_cnt+$bp;
+        $s1_cnt++;
+        if ($last_s2_start - $s1_end >= 0){ #does not overlap
+            my $N = $s1_end - $bp + 1; #A
+            my $M = $last_s2_start + 1; #C
+            my $GN = $N + $for_gc; #A
+            my $GM = $M + $for_gc; #C
+            print OUT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
+#           print OUT ">$s1_end"."_"."$s2_start\n";
+            print OUT "$s2_rc$s1\n";
+        }
+        else{
+            last;
+        }
+    }
+    $tbp++;
+    $last_s2_start = $length - $tbp;
+}
+
+$s2_cnt = 0;
+#100 each 
 my $s2_start = $length - $bp - $s2_cnt;
-open(OUT,">$out");
 while ($s2_start > 0){
     my $s2_st = -$bp-$s2_cnt;
     my $s1_cnt = 0;
@@ -74,10 +111,10 @@ while ($s2_start > 0){
 	my $s1_end = $s1_cnt+$bp;
 	$s1_cnt++;
 	if ($s2_start - $s1_end >= 0){ #does not overlap
-	    my $N = $s1_end - $bp + 1;
-	    my $M = $s2_start + 1;
-	    my $GN = $N + $for_gc;
-	    my $GM = $M + $for_gc;
+	    my $N = $s1_end - $bp + 1; #A
+	    my $M = $s2_start + 1; #C
+	    my $GN = $N + $for_gc; #A
+	    my $GM = $M + $for_gc; #C
 	    print OUT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
 #	    print OUT ">$s1_end"."_"."$s2_start\n";
 	    print OUT "$s2_rc$s1\n";

@@ -4,7 +4,6 @@ no warnings ('uninitialized', 'substr');
 $|=1;
 
 my $USAGE = "perl search1.pl <samfile> <search1 output>
-
 ";
 
 if (@ARGV<2){
@@ -15,13 +14,13 @@ open(INFILE, $ARGV[0]);
 open(OUTFILE, ">$ARGV[1]");
 
 my $cutoff = 15;
-my (@a, $seq, $A, $B, $cig, $d1, $d2, $t1, $t2, $x, $y, $str);
+my (@a, $seq, $A, $B, $cigar, $d1, $d2, $t1, $t2, $x, $y, $str);
 while(my $line = <INFILE>) {
     undef @a;
     undef $seq;
     undef $A;
     undef $B;
-    undef $cig;
+    undef $cigar;
     undef $d1;
     undef $d2;
     undef $t1;
@@ -37,23 +36,174 @@ while(my $line = <INFILE>) {
     if($a[5] =~ /\*/) {
 	next;
     }
+    my $refid = $a[2];
+    $refid =~ /(\d+)\)$/;
+    my $endid = $1;
+    my $sizeA = 100;
+    my $sizeB = 100;
+    if ($endid > 2901){
+	$sizeA = 3000 - $endid + 1;
+    }
+    $sizeA++;
     $line =~ /NM:i:(\d+)/;
     my $NM = $1;
     my $N = $a[3];
-    $a[5] =~ /[^M\d]*(\d+)M/;
+#    print "N:$N\n";
+    $cigar = $a[5];
+    my $cig = $cigar;
+#    print "$cig\n";
+    my (%DP,%IP);
+    my $di_ct = 1;
+    while ($cig =~ /(\d+)M(\d+)(D|I)(\d+)M/){
+	my $str = $1 . "M" . $2 . $3 . $4 . "M";
+	my $D_or_I = $3;
+	if ($D_or_I eq "D"){
+	    my $N = $1+$2+$4;
+	    my $dpos = $1;
+            my $dcnt = $2;
+            $DP{"$di_ct.$dpos"} = "$dcnt";
+            my $new_str = $N . "M";
+            $cig =~ s/$str/$new_str/;
+	}
+	if ($D_or_I eq "I"){
+            my $N = $1+$4;
+            my $Icnt = $2;
+            my $Ipos = $1;
+            $IP{"$di_ct.$Ipos"} = "$Icnt";
+            my $new_str = $N . "M";
+            $cig =~ s/$str/$new_str/;
+	}
+	$di_ct++;
+    }
+=comment
+    #check which comes first I or D.
+    my $first = "";
+    foreach my $char (split //, $cig) {
+	if ($char eq 'I'){
+	    $first = "I";
+	    last;
+	}
+	if ($char eq 'D'){
+	    $first = "D";
+	    last;
+	}
+    }
+    my (%DP,%IP);
+    my $d_ct = 1;
+    my $i_ct = 1;
+    if ($first eq "D"){
+	while ($cig =~ /(\d+)M(\d+)D(\d+)M/){
+	    my $N = $1+$2+$3;
+	    my $str = $1 . "M" . $2 . "D" . $3 . "M";
+	    my $dpos = $1;
+	    my $dcnt = $2;
+#	    print "dpos:$dpos\tdcnt:$dcnt\n";
+	    $DP{"$d_ct.$dpos"} = "$dcnt";
+	    my $new_str = $N . "M";
+	    $cig =~ s/$str/$new_str/;
+	    $d_ct++;
+	}
+	while ($cig =~ /(\d+)M(\d+)I(\d+)M/){ #insertion
+#	    my $N = $1+$2+$3;
+	    my $N = $1+$3;
+	    my $str = $1 . "M" . $2 . "I" . $3 . "M";
+	    my $Icnt = $2;
+	    my $Ipos = $1;
+	    $IP{"$i_ct.$Ipos"} = "$Icnt";
+	    my $new_str = $N . "M";
+	    $cig =~ s/$str/$new_str/;
+	    $i_ct++;
+	}
+    }
+    else{
+	while ($cig =~ /(\d+)M(\d+)I(\d+)M/){ #insertion
+#            my $N = $1+$2+$3;
+            my $N = $1+$3;
+            my $str = $1 . "M" . $2 . "I" . $3 . "M";
+            my $Icnt = $2;
+            my $Ipos = $1;
+            $IP{"$i_ct.$Ipos"} = "$Icnt";
+            my $new_str = $N . "M";
+            $cig =~ s/$str/$new_str/;
+	    $i_ct++;
+        }
+	while ($cig =~ /(\d+)M(\d+)D(\d+)M/){
+            my $N = $1+$2+$3;
+            my $str = $1 . "M" . $2 . "D" . $3 . "M";
+            my $dpos = $1;
+            my $dcnt = $2;
+#            print "dpos:$dpos\tdcnt:$dcnt\n";
+            $DP{"$d_ct.$dpos"} = "$dcnt";
+            my $new_str = $N . "M";
+            $cig =~ s/$str/$new_str/;
+            $d_ct++;
+	}
+    }
+=cut
+    $cig =~ /[^M\d]*(\d+)M/;
     my $M = $1;
-    my $A = 100 - $N;
-    my $B = $N + $M - 100;
+    my $A = $sizeA - $N;
+#    print "M:$M\n";
+    my $B = $N + $M - $sizeA;
+#    print "A\tB\n$A\t$B\n";
+    foreach my $dposl (keys %DP){
+#	print "dpos:$dposl\n";
+	my ($ctr,$dpos) = split(/\./,$dposl);
+	my $dcnt = $DP{$dposl};
+	if ($ctr == 1){
+	    if ($dpos < $A){
+		$A -= $dcnt;
+	    }
+	    else{
+		$B -= $dcnt;
+	    }
+	}
+	else{
+	    if ($dpos <= $A){
+                $A -= $dcnt;
+            }
+            else{
+                $B -= $dcnt;
+            }
+	}
+    }
+    foreach my $iposl (keys %IP){
+        my ($ctr,$ipos) = split(/\./,$iposl);
+	my $icnt = $IP{$iposl};
+#	print "iposl:$iposl\n";
+#	print "ipos\t$ipos\n";
+	if ($ctr == 1){
+	    if ($ipos < $A){
+		$A += $icnt;
+	    }
+	    else{
+		$B += $icnt;
+	    }
+	}
+	else{
+            if ($ipos <= $A){
+                $A += $icnt;
+            }
+            else{
+                $B += $icnt;
+            }
+	}
+    }
     $seq = $a[9];
-    $cig = $a[5];
     $cig =~ /^(\d+)(.)(\d+)(.)/;
     $d1 = $1;
     $t1 = $2;
     $d2 = $3;
     $t2 = $4;
     $str = "";
+=comment #db
+    print "$line\n";
+    print "$seq\t$cig\n";
+    print "d1:$d1\tt1:$t1\td2:$d2\tt2:$t2\n";
+    print "A:$A\nB:$B\n";
+=cut
     if($t1 eq "S" && $t2 eq "M") {
-	$y = $d1+1;
+	$y = $d1;
 	$str = $str . substr($seq,0,$y);
 	$str = $str . ">>>";
 	$str = $str . substr($seq,$y,$A);
@@ -64,7 +214,8 @@ while(my $line = <INFILE>) {
 	$x = $x + $B;
 	$y = length($seq) - $x;
 	$str = $str . substr($seq,$x,$y);
-    } else {
+    } 
+    else {
 	$cig =~ /^(\d+)(.)/;
 	$d1 = $1;
 	$t1 = $2;

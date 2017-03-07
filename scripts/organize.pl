@@ -43,23 +43,30 @@ for(my $i=0; $i<@a; $i++) {
 	print "$str";
 	exit();
     }
-    if (exists $DATA{$b[1]}){
-	$DATA{$b[1]} = $DATA{$b[1]} . "$b[1]\t$b[0]\t$b[4]\t$b[5]\t$b[2]\t$b[3]\t$b[6]\t$b[8]\t$b[7]\n";
-    }
-    else{
-	$DATA{$b[1]} = "$b[1]\t$b[0]\t$b[4]\t$b[5]\t$b[2]\t$b[3]\t$b[6]\t$b[8]\t$b[7]\n";
-    }
     my $r1 = $b[7];
     $r1 =~ />>>(.+):::(.+)<<</;
     my $t1 = $1;
     my $t2 = $2;
     print OUTR ">"."$b[0]:::::$b[8]\n$t1$t2\n";
+    my $min;
+    if ($b[4] >= $b[5]){
+	$min = $b[5];
+    }
+    else{
+	$min = $b[4];
+    }
+    if (exists $DATA{$b[1]}){
+	$DATA{$b[1]} = $DATA{$b[1]} . "$b[1]\t$b[0]\t$b[4]\t$b[5]\t$min\t$b[2]\t$b[3]\t$b[6]\t$b[8]\t$b[7]\t$t1$t2\n";
+    }
+    else{
+	$DATA{$b[1]} = "$b[1]\t$b[0]\t$b[4]\t$b[5]\t$min\t$b[2]\t$b[3]\t$b[6]\t$b[8]\t$b[7]\t$t1$t2\n";
+    }
 }
 close(OUTR);
 my $filename = "$DIR/results/$indexname" . "_RESULTS.txt";
 
 open(OUTFILE, ">$filename");
-print OUTFILE "A_C(A_C)\tREAD_ID\tLEFT\tRIGHT\tMIN\tSTART\tCIGAR\tSEQ_RUN\tREAD\n";
+print OUTFILE "A_C(A_C)\tREAD_ID\tLEFT\tRIGHT\tMIN\tSTART\tCIGAR\tNM\tSEQ_RUN\tREAD\tMAPPED_ONLY\n";
 foreach my $key (keys %DATA) {
     print OUTFILE "$DATA{$key}";
 }

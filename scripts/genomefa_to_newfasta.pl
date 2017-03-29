@@ -39,15 +39,6 @@ my $onelineseq = "";
 while(my $line = <IN>) {
     if($line =~ />/) {
 	next;
-=comment
-	if($flag == 0) {
-	    $onelineseq .= $line;
-	    $flag = 1;
-	}
-	else {
-	    $onelineseq .= "\n$line";
-	}
-=cut
     }
     else {
 	chomp($line);
@@ -57,9 +48,6 @@ while(my $line = <IN>) {
 }
 close(IN);
 my $seql = length($onelineseq);
-#my $gsize = "$out.gsize";
-#print genome size to a file for search script.
-#my $c = `echo $seql > $gsize`;
 
 my $for_gc = $seql+$bases_to_use;
 my $threekb = substr($onelineseq, $bases_to_use);
@@ -72,6 +60,7 @@ my $tbp = 25;
 my $last_s2_start = $length - $tbp;
 #die $last_s2_start;
 open(OUT, ">$out");
+open(OT, ">$out.temp");
 while($last_s2_start > 2900){
     my $s2_st = -$tbp;
     my $s1_cnt = 0;
@@ -87,8 +76,9 @@ while($last_s2_start > 2900){
             my $GN = $N + $for_gc; #A
             my $GM = $M + $for_gc; #C
             print OUT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
-#           print OUT ">$s1_end"."_"."$s2_start\n";
             print OUT "$s2_rc$s1\n";
+	    print OT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
+	    print OT "$s2_rc|||$s1\n";
         }
         else{
             last;
@@ -116,8 +106,9 @@ while ($s2_start > 0){
 	    my $GN = $N + $for_gc; #A
 	    my $GM = $M + $for_gc; #C
 	    print OUT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
-#	    print OUT ">$s1_end"."_"."$s2_start\n";
 	    print OUT "$s2_rc$s1\n";
+	    print OT ">$GN"."_"."$GM"."("."$N"."_"."$M)\n";
+	    print OT "$s2_rc|||$s1\n";
 	}
 	else{
 	    last;
@@ -127,6 +118,7 @@ while ($s2_start > 0){
     $s2_start = $length - $bp - $s2_cnt;
 }
 close(OUT);
+close(OT);
 
 print "got here\n";
 

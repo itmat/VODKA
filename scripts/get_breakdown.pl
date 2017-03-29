@@ -34,15 +34,22 @@ foreach my $seq (sort keys %SEQRUN){
     print OUT "\t$seq";
 }
 print OUT "\n";
+close(OUT);
+my $temp = "$breakdown.tmp";
+open(TMP, ">$temp");
 foreach my $nm (sort keys %TCNT){
     my $cnt = @{$TCNT{$nm}};
-    print OUT "$nm\t$cnt";
+    print TMP "$nm\t$cnt";
     foreach my $seq (sort keys %SEQRUN){
 	my $count_seq = grep { $_ eq $seq } @{$TCNT{$nm}};
-	print OUT "\t$count_seq";
+	print TMP "\t$count_seq";
     }
-    print OUT "\n";
+    print TMP "\n";
 }
-close(OUT);
+close(TMP);
+my $s = `sort -nrk 2 $temp >> $breakdown`;
+if (-e $temp){
+    `rm $temp`;
+}
 print "got here\n";
 

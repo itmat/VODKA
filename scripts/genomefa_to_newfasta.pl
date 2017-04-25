@@ -55,13 +55,14 @@ my $threekb = substr($onelineseq, $bases_to_use);
 my $s2_cnt = 0;
 my $length = length($threekb);
 
-#25 to 99 
+#25 to $bp - 1 
 my $tbp = 25;
 my $last_s2_start = $length - $tbp;
+my $s2_start = $length - $bp - $s2_cnt;
 #die $last_s2_start;
 open(OUT, ">$out");
 open(OT, ">$out.temp");
-while($last_s2_start > 2900){
+while($last_s2_start > $s2_start){
     my $s2_st = -$tbp;
     my $s1_cnt = 0;
     my $s2 = substr($threekb, -$tbp, $tbp);
@@ -86,11 +87,9 @@ while($last_s2_start > 2900){
     }
     $tbp++;
     $last_s2_start = $length - $tbp;
+
 }
 
-$s2_cnt = 0;
-#100 each 
-my $s2_start = $length - $bp - $s2_cnt;
 while ($s2_start > 0){
     my $s2_st = -$bp-$s2_cnt;
     my $s1_cnt = 0;

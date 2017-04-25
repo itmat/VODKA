@@ -3,10 +3,11 @@ use strict;
 no warnings ('uninitialized', 'substr');
 $|=1;
 
-my $USAGE = "perl search1.pl <samfile> <search1 output>
+my $USAGE = "perl search1.pl <samfile> <search1 output> <bp> <readLength>
+
 ";
 
-if (@ARGV<2){
+if (@ARGV<4){
     die $USAGE;
 }
 
@@ -14,6 +15,8 @@ open(INFILE, $ARGV[0]);
 open(OUTFILE, ">$ARGV[1]");
 
 my $cutoff = 15;
+my $bp = $ARGV[2];
+my $readLength = $ARGV[3];
 my (@a, $seq, $A, $B, $cigar, $d1, $d2, $t1, $t2, $x, $y, $str);
 while(my $line = <INFILE>) {
     undef @a;
@@ -39,10 +42,11 @@ while(my $line = <INFILE>) {
     my $refid = $a[2];
     $refid =~ /(\d+)\)$/;
     my $endid = $1;
-    my $sizeA = 100;
-    my $sizeB = 100;
-    if ($endid > 2901){
-	$sizeA = 3000 - $endid + 1;
+    my $sizeA = $readLength;
+    my $sizeB = $readLength;
+    my $check = $bp - $readLength + 1;
+    if ($endid > $check){
+	$sizeA = $bp - $endid + 1;
     }
     $sizeA++;
     $line =~ /NM:i:(\d+)/;

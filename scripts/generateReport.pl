@@ -1,17 +1,18 @@
 #!/usr/bin/env perl
 use warnings;
 use strict;
-my $usage = "perl generateReport.pl <genomeFA> <summaryFile> <loc> <version>
+my $usage = "perl generateReport.pl <genomeFA> <summaryFile> <loc> <readlength> <version>
 ";
 
-if (@ARGV<4){
+if (@ARGV<5){
     die $usage;
 }
 
 my $genome = $ARGV[0];
 my $summary = $ARGV[1];
 my $loc = $ARGV[2];
-my $version = $ARGV[3];
+my $readL = $ARGV[3];
+my $version = $ARGV[4];
 
 my @a = split("/", $genome);
 my $gname = $a[@a-1];
@@ -245,7 +246,7 @@ sub writeHtml{
 	    $slist .= "<br><span id=\"tab\">$hs[$i]</span>";
 	}
     }
-    print OUT "<p><font color=#56573C><b>genomeFA:</b></font> $genomeName</p><p><font color=#56573C><b>queryInput:</b></font><br><br>$slist</p><p><font color=#56573C><b>bp_from_right:</b></font> $str_size</p>";
+    print OUT "<p><font color=#56573C><b>genomeFA:</b></font> $genomeName</p><p><font color=#56573C><b>queryInput:</b></font><br><br>$slist</p><p><font color=#56573C><b>bp_from_right:</b></font> $str_size</p><p><font color=#56573C><b>readLength:</b></font> $readL</p>";
     my $date = `date`;
     print OUT "<font size=-1><font color=#56573C>(report generated on $date)</font></font>";
     print OUT "<h3>Results :</h3>";

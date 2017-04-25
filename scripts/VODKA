@@ -8,11 +8,11 @@ Usage:
 
 VODKA --genomeFA <input fasta> --queryInput <file of fastq/fasta> --outDir <output directory> --bt2Dir <bowtie2 directory> --webLogo <webLogo> [options]
 
---genomeFA <input fasta> viral genome fasta file.
---queryInput <fastq/fastq> a file with full path of fastq or fasta files for alignment. fastq/fasta files can be gzip'ed.
---outDir <output directory> full path to output directory.
---bt2Dir <bowtie2 directory> full path to bowtie2-2.2.9 directory. (where bowtie2 and bowtie2-build is located)
---webLogo <webLogo> full path to webLogo. 
+--genomeFA <input fasta> : viral genome fasta file.
+--queryInput <fastq/fastq> : a file with full path of fastq or fasta files for alignment. fastq/fasta files can be gzip'ed.
+--outDir <output directory> : full path to output directory.
+--bt2Dir <bowtie2 directory> : full path to bowtie2-2.2.9 directory. (where bowtie2 and bowtie2-build is located)
+--webLogo <webLogo> : full path to webLogo. 
 
 [options]
 -bp_from_right <n> : <n> is number of bases from right. (default: 3000)
@@ -25,10 +25,10 @@ VODKA --genomeFA <input fasta> --queryInput <file of fastq/fasta> --outDir <outp
 if (@ARGV < 1){
 	die $USAGE;
 }
-my ($fasta, @query, $OUTDIR, $bt2_path, $webLogo_path);
+my ($fasta, @query, $OUTDIR, $bt2_path, $webLogo_path, $qfile);
 my $req_cnt = 0;
 my $bp = 3000;
-my $version = "VODKA v0.1d\n";
+my $version = "VODKA v0.1e\n";
 my $req_str = "--genomeFA, --queryInput, --outDir, --bt2Dir, --webLogo";
 for(my $i=0; $i<@ARGV; $i++){
 	my $option_recognized = "false";
@@ -63,11 +63,11 @@ for(my $i=0; $i<@ARGV; $i++){
 	}
 	if ($ARGV[$i] eq '--queryInput'){
 		$option_recognized = "true";
-		my $file = $ARGV[$i+1];
-		unless (-e $file){
-			die "ERROR: file '$file' does not exist.\n";
+		$qfile = $ARGV[$i+1];
+		unless (-e $qfile){
+			die "ERROR: file '$qfile' does not exist.\n";
 		}
-		my $files = `cat $file`;
+		my $files = `cat $qfile`;
 		@query = split(/\n/,$files);
 		$i++;
 		$req_cnt++;
@@ -181,7 +181,14 @@ my $jobnum = 1;
 my ($x, $pid, $check);
 
 print LOG "\n=============\n $version=============\n\n*******\n$path/VODKA @ARGV\n*******\n\n";
-#=comment
+
+###############################
+#STEP0: get max read length
+###############################
+my $rl = `perl $path/get_readlength.pl $qfile`;
+chomp($rl);
+my $readLength = $rl;
+
 ###############################
 #STEP1: newfasta from genomeFA
 ###############################
@@ -190,7 +197,7 @@ $jobnamep = "$jobname.$study";
 $logname = $jobname;
 $time = `date`;
 print LOG "$jobnum. $jobname\n\tSTARTED: $time";
-$x = `echo "perl $path/genomefa_to_newfasta.pl $fasta $bp 100 $outFASTA\n" > $shdir/$jobnamep.sh`;
+$x = `echo "perl $path/genomefa_to_newfasta.pl $fasta $bp $readLength $outFASTA\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
 until ($check eq '0'){
@@ -292,7 +299,7 @@ for my $qfile (@query){
     my $SAM = "$alndir/$samplename.$indexname.sam";
     my $sOUT = $SAM;
     $sOUT =~ s/.sam$/.search_output.txt/;
-	$x = `echo "perl $path/search1.pl $SAM $sOUT" > $shdir/$jobnamep.$samplename.sh`;
+	$x = `echo "perl $path/search1.pl $SAM $sOUT $bp $readLength" > $shdir/$jobnamep.$samplename.sh`;
 	$logname = "$jobname.$samplename";
 	$pid = open $fhOut, "| sh $shdir/$jobnamep.$samplename.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 }
@@ -454,8 +461,8 @@ $jobnamep = "$jobname.$study";
 $time = `date`;
 print LOG "$jobnum. $jobname\n\tSTARTED: $time";
 $logname = "$jobname";
-#perl generateReport.pl <genomeFA> <summaryFile> <loc> <version>
-$x = `echo "perl $path/generateReport.pl $fasta $summaryfile $OUTDIR '$version'\n" > $shdir/$jobnamep.sh`;
+#perl generateReport.pl <genomeFA> <summaryFile> <loc> <readLength> <version>
+$x = `echo "perl $path/generateReport.pl $fasta $summaryfile $OUTDIR $readLength '$version'\n" > $shdir/$jobnamep.sh`;
 $pid = open $fhOut, "| sh $shdir/$jobnamep.sh  1> $logdir/$logname.out 2> $logdir/$logname.err&", or die;
 $check = `ps -ef |  grep -w $jobnamep | grep -vc grep`;
 until ($check eq '0'){
@@ -466,7 +473,7 @@ until ($check eq '0'){
 &check_exit_onejob($jobname);
 &only_err("$logname.err");
 $jobnum++;
-#=cut
+
 ####################################
 #STEP13: cleanup
 ####################################
@@ -488,12 +495,13 @@ until ($check eq '0'){
 $jobnum++;
 
 
-
 print LOG "\n************************************\n";
 print LOG "*   VODKA completed Successfully   *";
 print LOG "\n************************************\n";
 print LOG "\nFinal results file: $filtered\n";
-print LOG "Summary file: $summaryfile\n\n";
+print LOG "Summary file: $summaryfile\n";
+my $reportloc = glob("$OUTDIR/VODKA_report*/");
+print LOG "\nVODKA report: $reportloc\n\n";
 
 sub check_exit_onejob {
     my ($name_of_job) = @_;
@@ -522,7 +530,7 @@ sub check_exit_alljob{
 
 sub only_err{
     my ($err_name) = @_;
-    my $wc_err_sample = `grep '[^[:blank:]]' $logdir/$err_name | grep -v -e "Building a SMALL index" -e reads -e align -e unpair -e is.unsorted -e as -e rbind -e package -e cluster -e apply -e tabs -e uni | wc -l`;
+    my $wc_err_sample = `grep '[^[:blank:]]' $logdir/$err_name | grep -v -e "Building a SMALL index" -e reads -e align -e unpair -e is.unsorted -e as -e rbind -e package -e cluster -e apply -e tabs -e uni -e unlist -e  intersect| wc -l`;
     my @wc = split(/\n/, $wc_err_sample);
     my $sum = 0;
     my $log = `cat $logdir/$err_name`;

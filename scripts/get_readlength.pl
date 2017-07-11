@@ -58,6 +58,13 @@ sub get_filetype{
     my $ft = `file $file`;
     chomp($ft);
     my $gz = "";
+    if ($ft =~ /link to/){
+        my $ofile = `readlink -f $file`;
+        chomp($ofile);
+        $ft = `file $ofile`;
+	chomp($ft);
+        $file = $ofile;
+    }
     if ($ft =~ /compressed/){
 	$gz = "true";
     }

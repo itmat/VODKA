@@ -551,34 +551,39 @@ sub only_err{
 }
 
 sub get_filetype{
-	my ($file) = @_;
-	my $ft = `file $file`;
+    my ($file) = @_;
+    my $ft = `file $file`;
+    chomp($ft);
+    my $gz = "";
+    if ($ft =~ /link to/){
+	my $ofile = `readlink -f $file`;
+	chomp($ofile);
+	$ft = `file $ofile`;
 	chomp($ft);
-	my $gz = "";
-	if ($ft =~ /compressed/){
-	    $gz = "true";
-	}
-	else{
-	    $gz = "false";
-	}
-    my $firstline;
-    if ($gz eq "true"){
-        $firstline = `gunzip -c $file | head -1`;
+	$file = $ofile;
+    }
+    if ($ft =~ /compressed/){
+	$gz = "true";
     }
     else{
-        $firstline = `head -1 $file`;
+	$gz = "false";
+    }
+    my $firstline;
+    if ($gz eq "true"){
+	$firstline = `gunzip -c $file | head -1`;
+    }
+    else{
+	$firstline = `head -1 $file`;
     }
     my $fqfa = "";
     if ($firstline =~ /^@/){
-    	$fqfa = "fq";
+	$fqfa = "fq";
+    }
+    elsif ($firstline =~ /^>/){
+	$fqfa = "fa";
     }
     else{
-        if ($firstline =~ /^>/){
-        	$fqfa = "fa";
-        }
-        else{
-            die "\nERROR: Unaligned files need to be in fastq or fasta format.\n\n";
-        }
+	die "\nERROR: Unaligned files need to be in fastq or fasta format.\n\n";
     }
     return ($gz, $fqfa);
 }

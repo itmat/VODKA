@@ -28,7 +28,7 @@ if (@ARGV < 1){
 my ($fasta, @query, $OUTDIR, $bt2_path, $webLogo_path, $qfile);
 my $req_cnt = 0;
 my $bp = 3000;
-my $version = "VODKA v0.1e\n";
+my $version = "VODKA v0.1f\n";
 my $req_str = "--genomeFA, --queryInput, --outDir, --bt2Dir, --webLogo";
 for(my $i=0; $i<@ARGV; $i++){
 	my $option_recognized = "false";

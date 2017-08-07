@@ -33,20 +33,15 @@ while(my $line = <IN>){
     }
     else{
 	$SEEN{$name} = 1;
-	my $out = "$loc/$name.mapped.fasta";
-	open($OUTFILES{$name}, ">$out");
-	my $outall = "$loc/$name.all.fasta";
-	open($OUTFILES_ALL{$name}, ">$outall");
     }
 }
 close(IN);
-open(LT, ">$aclist") or die "cannot open $aclist\n";
-foreach my $ac (keys %SEEN){
-    if ($SEEN{$ac} >= 10){
-	print LT "$ac\n";
-    }
+
+foreach my $name (keys %SEEN){
+    my $out = "$loc/$name.mapped.fasta";
+    open($OUTFILES{$name}, ">$out");
 }
-close(LT);
+
 open(IN,$filtered) or die "cannot open $filtered\n";
 $h = <IN>;
 while(my $line = <IN>){
@@ -59,9 +54,41 @@ while(my $line = <IN>){
     my $seqm = $a[10];
     my $seqa = $a[9];
     print {$OUTFILES{$name}} ">$seqid\n$seqm\n";
+}
+close(IN);
+foreach my $file (keys %OUTFILES){
+    close($OUTFILES{$file});
+}
+
+foreach my $name (keys %SEEN){
+    my $outall = "$loc/$name.all.fasta";
+    open($OUTFILES_ALL{$name}, ">$outall");
+}
+open(IN,$filtered) or die "cannot open $filtered\n";
+$h = <IN>;
+while(my $line = <IN>){
+    chomp($line);
+    my @a = split(/\t/,$line);
+    my $ac = $a[0];
+    $ac =~ /(.*)\(.*\)/;
+    my $name = $1;
+    my $seqid = $a[1] . ":::::" . $a[8];
+    my $seqm = $a[10];
+    my $seqa = $a[9];
     print {$OUTFILES_ALL{$name}} ">$seqid\n$seqa\n";
 }
 close(IN);
+foreach my $file (keys %OUTFILES_ALL){
+    close($OUTFILES_ALL{$file});
+}
+
+open(LT, ">$aclist") or die "cannot open $aclist\n";
+foreach my $ac (keys %SEEN){
+    if ($SEEN{$ac} >= 10){
+	print LT "$ac\n";
+    }
+}
+close(LT);
 
 open(RF, $ref) or die "cannot open $ref\n";
 while(my $id = <RF>){

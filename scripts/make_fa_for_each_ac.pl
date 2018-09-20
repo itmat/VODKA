@@ -84,7 +84,7 @@ foreach my $file (keys %OUTFILES_ALL){
 
 open(LT, ">$aclist") or die "cannot open $aclist\n";
 foreach my $ac (keys %SEEN){
-    if ($SEEN{$ac} >= 10){
+    if ($SEEN{$ac} > 0){
 	print LT "$ac\n";
     }
 }
@@ -98,7 +98,7 @@ while(my $id = <RF>){
     $id =~ /(.*)\(.*\)/;
     my $name = $1;
     if (exists $SEEN{$name}){
-	if ($SEEN{$name} >= 10){
+	if ($SEEN{$name} > 0){
 	    my $outref = "$loc/REF.$name.fasta";
 	    open(OUT ,">$outref");
 	    print OUT ">$name\n$seq\n";
@@ -116,7 +116,7 @@ while(my $id = <TRF>){
     $id =~ /(.*)\(.*\)/;
     my $name = $1;
     if (exists $SEEN{$name}){
-        if ($SEEN{$name} >= 10){
+        if ($SEEN{$name} > 0){
             my $outref = "$loc/TempREF.$name.fasta";
             open(OUT ,">$outref");
             print OUT ">$name\n$seq\n";
